@@ -68,8 +68,7 @@ Edit these in the `Settings` sheet:
 ### Special Note for Datasheet
 
 When editing the `Datasheet`:
-- Remove the first 3 rows of sample data.
-- Keep the first 6 columns (From A to F) as they are required. Add data columns after them.
+- **Keep Required Columns**: The first 6 columns (From A to F) are required and should not be removed. Add data columns after them.
 - **Field Names Must Be Unique**: Ensure all column headers (field names) are unique to avoid data conflicts.
 - **Inline Images and QR Codes**: To activate inline images or QR code generation, field names must start with:
   - `imglink` for images from a URL (e.g., `imglink1`, `imglink2`).
