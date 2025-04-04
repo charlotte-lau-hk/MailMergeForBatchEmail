@@ -2,7 +2,7 @@
 
 A Google Apps Script to send batch emails with rich-text, inline images, QR codes, attachments, and dynamic previews, integrated with Google Sheets and Drive.
 
-[![Version](https://img.shields.io/badge/version-9.0.0-F1C40F)](https://docs.google.com/spreadsheets/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy)  
+[![Version](https://img.shields.io/badge/version-9.0-F1C40F)](https://docs.google.com/spreadsheets/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy)  
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Charlotte%20Lau-0288D1?logo=linkedin)](https://www.linkedin.com/in/charlotte-lau-hk/)  
 [![Website](https://img.shields.io/badge/Website-syclau.hk-D81B60)](https://www.syclau.hk)  
 *Last Updated: 2025-04-04*
