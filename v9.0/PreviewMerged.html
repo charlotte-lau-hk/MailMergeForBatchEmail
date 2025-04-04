@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <!--<link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">-->
+    <script>
+      // Scoped state
+      const state = {
+        cache: {},
+        list: [],
+        idx: 0,
+        converter: new showdown.Converter({ tables: true, underline: true })
+      }
+      // On page load
+      $(document).ready(function() {
+        $("#nav").hide();
+        $("input[type=button]").prop("disabled", true);
+        $("#list").on("change", function() {
+          let $opt = $("#list option:selected");
+          goRecord($opt.val(), 0);
+        });
+        google.script.run
+          .withSuccessHandler(function(data) {
+            state.list = data["list"];
+            state.idx = 0;
+            showData(data);
+            if (state.list.length > 0) {
+              $("#list").html(state.list.map((num, idx) => "<option value='" + idx + "'>" + num + "</option>").join(""));
+              loadRecord();
+            } else {
+              showError("No record to send, and thus no preview.");
+            }
+          })
+          .withFailureHandler(function(err) {
+            showError(err.message);
+          })
+          .setupPreview();
+      });
+      
+      function showMessage(mesg) {
+        $("#mesg").text(mesg).removeClass("err");
+      }
+
+      function showError(errMesg) {
+        $("#mesg").text(errMesg).addClass("err");    
+      }
+
+      function showData(obj) {
+        if ((obj["list"] !== undefined) && (obj["list"].length==0)) {
+          showMessage("No emails to preview.");
+          return;
+        }
+        for (let [key, val] of Object.entries(obj)) {
+          let $element = $("#data_"+key);
+          if ($element.length) {
+            if (["folderInfo", "subfolderInfo"].includes(key)) {
+              val = "📁 "
+                    + (val["id"] ? "<a href='https://drive.google.com/drive/folders/" + val["id"]  + "' target='_blank'>" : "")
+                    + val["name"]
+                    + (val["id"] ? "</a>" : "");
+            } else if (["to", "ccList", "bccList"].includes(key)) {
+              val = val.split(",").map(s => "<span class='email'>"+s.trim()+"</span>").join("");
+            } else if (key === "body") {
+              val = state.converter.makeHtml(val);
+              // Write to iframe
+              const iframe = $element[0]; // Get the raw iframe element
+              const doc = iframe.contentDocument || iframe.contentWindow.document;
+              doc.open();
+              doc.write(`
+                <!DOCTYPE html>
+                <html>
+                  <head>
+                    <style>
+                      body { margin: 0; padding: 6px; font-family: Arial, sans-serif; font-size: 13px; line-height: 1.4; color: #1e293b; }
+                      p { margin: 0 0 10px 0; }
+                    </style>
+                  </head>
+                  <body>${val}</body>
+                </html>
+              `);
+              doc.close();
+            } else if (key === "attachments") {
+              val = val.map(item => "<div>📄 "
+                                    + (item.id ? "<a href='https://drive.google.com/file/d/" + item.id + "/view' target='_blank'>" : "" )
+                                    + item.name
+                                    + (item.id ? "</a>" : "")
+                                    +"</div>").join("");
+            }
+            $element.html(val);
+          }
+        }
+      }
+
+      function loadRecord() {
+        function displayMailContent(data) {
+          state.cache[state.list[state.idx]] = data;
+          showData(data);
+          showMessage("Record #" + state.list[state.idx] + " loaded.");
+          $("#nav").show();
+        }
+
+        $("#btnFirst, #btnPrev").prop("disabled", state.idx === 0);
+        $("#btnNext, #btnLast").prop("disabled", state.idx === state.list.length - 1);
+        showMessage("Loading record #" + state.list[state.idx]);
+        // Clear all .local elements except iframe
+        $(".local").not("#data_body").empty();
+
+        // Clear iframe content
+        const iframe = $("#data_body")[0];
+        if (iframe) {
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          doc.open();
+          doc.write("<html><body>Loading. Please wait.</body></html>");
+          doc.close();
+        }
+        
+        let cached = state.cache[state.list[state.idx]];
+        if (cached) {
+          displayMailContent(cached);
+        } else {
+          google.script.run
+            .withSuccessHandler((response) => displayMailContent(response))
+            .withFailureHandler((err) => showError(err.message))
+            .previewRow(state.list[state.idx]);
+        }
+      }
+
+      function goRecord(delta, pos = state.idx) {
+        state.idx = Math.max(0, Math.min(pos + delta, state.list.length - 1));
+        $("#list").val(state.idx);
+        loadRecord();
+      }
+    </script>
+    <style>
+      /* Reset and Frost Theme Base */
+      body {
+        margin: 0;
+        padding: 10px;
+        font-family: 'Arial', 'Helvetica', sans-serif;
+        background: linear-gradient(135deg, #e0f7fa, #f0f4f8);
+        color: #1a2e44;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 13px;
+      }
+
+      /* Message Bar */
+      #mesg {
+        background-color: #fafefe;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        text-align: left;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        border: 2px solid #b3e5fc;
+        color: #01579b;
+      }
+      #mesg.err {
+        background-color: #ffebee;
+        color: #c0392b;
+        border-color: #ef9a9a;
+      }
+
+      /* Container for Columns */
+      #container {
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        flex-grow: 1;
+      }
+
+      /* Two-Column Layout */
+      #left, #right {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      #left {
+        width: 70%;
+      }
+      #right {
+        width: 30%;
+      }
+
+      /* Navigation */
+      #nav {
+        display: none;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 6px !important;
+      }
+      #nav span.record-label {
+        color: #01579b;
+        font-size: 12px;
+      }
+      #nav input[type="button"] {
+        padding: 5px 10px;
+        border: none;
+        border-radius: 4px;
+        background-color: #4fabc9;
+        color: #ffffff;
+        cursor: pointer;
+        font-size: 12px;
+        min-width: 55px;
+        line-height: 1.4;
+        transition: background-color 0.2s ease;
+      }
+      #nav input[type="button"]:hover {
+        background-color: #4298b5;
+      }
+      #nav input[type="button"]:disabled {
+        background-color: #b3e5fc;
+        color: #90c7e3;
+        cursor: not-allowed;
+      }
+      #nav select {
+        padding: 5px;
+        border-radius: 4px;
+        border: 1px solid #b0bec5;
+        font-size: 12px;
+        background-color: #ffffff;
+        min-width: 55px;
+        text-align: center;
+      }
+
+      /* Unified Pane Styling */
+      #nav, #preview, #info, #attachmentList {
+        background: rgba(255, 255, 255, 0.85);
+        padding: 10px;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border: 1px solid #b3e5fc;
+      }
+      .headline {
+        font-size: 14px;
+        font-weight: 600;
+        color: #00695c;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      /* Preview Pane */
+      #preview div:not(.body-wrapper) {
+        display: flex;
+        align-items: center;
+        margin-bottom: 4px;
+        min-height: 22px;
+      }
+      #preview .body-wrapper {
+        display: flex;
+        flex-direction: column;
+      }
+      #preview .dataLabel {
+        display: inline-block;
+        width: 65px;
+        font-weight: bold;
+        color: #455a64;
+        flex-shrink: 0;
+      }
+      #preview .dataValue {
+        display: inline-block;
+        color: #1a2e44;
+        flex-grow: 1;
+        background-color: #f6fcff;
+        border-radius: 2px;
+        border: 1px solid #b3e5fc;
+        padding: 0 4px;
+        min-height: 20px;
+        line-height: 20px;
+      }
+      #preview .dataValue .email {
+        display: inline-block;
+        font-family: 'Courier New', Courier, monospace;
+        border: 1px solid #4dd0e1;
+        border-radius: 5px;
+        padding: 0 4px;
+        margin: 0 4px 0 0;
+        background-color: #e0f7fa;
+        color: #22486d;
+        font-weight: bold;
+        line-height: 16px;
+      }
+      #data_body {
+        background-color: #ffffff;
+        height: 400px;
+        overflow-y: auto;
+        border: 1px solid #b3e5fc;
+        border-radius: 4px;
+        flex-grow: 1;
+      }
+
+      /* Info Pane */
+      #info div {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 8px;
+      }
+      #info .dataLabel {
+        width: auto;
+        font-weight: bold;
+        color: #455a64;
+        text-decoration: underline;
+      }
+      #info .dataValue {
+        color: #1a2e44;
+        margin-top: 3px;
+      }
+
+      /* Attachment List Pane */
+      #attachmentList div {
+        display: flex;
+        flex-direction: column;
+      }
+      #attachmentList .dataLabel {
+        font-weight: bold;
+        text-decoration: underline;
+        color: #455a64;
+        margin-bottom: 6px;
+      }
+      #data_attachments {
+        flex-grow: 1;
+      }
+      #data_attachments div {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      /* Links */
+      a {
+        color: #0288d1;
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+      a:hover {
+        color: #01579b;
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="mesg">Setting Up... Please wait...</div>
+    <div id="container">
+      <div id="left">
+        <div id="nav">
+          <input type="button" id="btnFirst" value="▐◀ First" onclick="goRecord(-Infinity)">
+          <input type="button" id="btnPrev" value="◀ Prev" onclick="goRecord(-1)">
+          <span>
+            <span class="record-label">Record</span> <select id="list"></select>
+          </span>
+          <input type="button" id="btnNext" value="Next ▶" onclick="goRecord(1)">
+          <input type="button" id="btnLast" value="Last ▶▌" onclick="goRecord(Infinity)">
+        </div>
+        <div id="preview">
+          <div><span class="dataLabel">To: </span><span id="data_to" class="dataValue local"></span></div>
+          <div><span class="dataLabel">Cc: </span><span id="data_ccList" class="dataValue global"></span></div>
+          <div><span class="dataLabel">Bcc: </span><span id="data_bccList" class="dataValue global"></span></div>
+          <div><span class="dataLabel">Subject: </span><span id="data_subject" class="dataValue local"></span></div>
+          <div class="body-wrapper"><iframe id="data_body" class="dataValue local" frameborder="0"></iframe></div>  
+        </div>
+      </div>
+      <div id="right">
+        <div id="info">
+          <div><span class="dataLabel">Template</span><span id="data_template" class="dataValue local"></span></div>
+          <div><span class="dataLabel">Folder</span><span id="data_folderInfo" class="dataValue global"></span></div>
+          <div><span class="dataLabel">Subfolder</span><span id="data_subfolderInfo" class="dataValue local"></span></div>
+        </div>
+        <div id="attachmentList">
+          <div><span class="dataLabel">Attachment(s)</span>
+            <div id="data_attachments" class="local"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

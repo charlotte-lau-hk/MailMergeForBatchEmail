@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!--<link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">-->
+    <script>
+      // On page load
+      $(document).ready(function() {
+        getFolderContents("root");
+      });
+
+      function getFolderContents(folderId) {
+        $('#folderList').empty().append("<option selected disabled='disabled'>Loading subfolders...</option>");
+        $('#fileList').empty().append("<option selected disabled='disabled'>Loading files...</option>");
+        google.script.run
+          .withSuccessHandler(function(data) {
+            listFolders(data.folders);
+            listFiles(data.files);
+          })
+          .withFailureHandler(function(err) {
+            $('#folderList').empty().append("<option selected disabled='disabled'>Error: " + err.message + "</option>");
+            $('#fileList').empty().append("<option selected disabled='disabled'>Error: " + err.message + "</option>");
+          })
+          .FP_getFolderContents(folderId);
+
+        // Handlers
+        function listFolders(folderList) {
+          $('#folderList').empty()
+            .append("<option selected disabled='disabled'>Or choose a sub-folder...</option>");
+          if (folderId !== "root") {
+            $('#folderList').append("<option value='parent'>.. (parent folder)</option>");
+          }
+          for (var i = 0; i < folderList.length; i++) {
+            $('#folderList').append("<option value='" + folderList[i][0] + "'>" + folderList[i][1] + "</option>");
+          }
+        }
+
+        function listFiles(fileList) {
+          $('#fileList').empty();
+          for (var i = 0; i < fileList.length; i++) {
+            $('#fileList').append("<option>" + fileList[i] + "</option>");
+          }
+        }
+      }
+
+      function goSubFolder() {
+        var folderName = $("#folderList").find(':selected').text();
+        var folderId = $("#folderList").find(':selected').val();
+        if (folderId === "parent") {
+          goBack(1);
+        } else {
+          let count = $("#folderPath").children("div").length;
+          let $line = $("<div>").addClass("hierarchy");
+          if (count == 1) {
+            $line.append("┗ ");
+          } else if (count>1) {
+            $line.append("　".repeat(count-1)).append("┗ ");
+          }
+          $line.append("<span id='" + folderId + "' class='folder' onclick='goBack(this.id)'>" + folderName + "</span>")
+            .appendTo("#folderPath");
+          //$('#folderPath').append("<div id='" + folderId + "' onclick='goBack(this.id)'>" + folderName + "</div>");
+          getFolderContents(folderId);
+        }
+      }
+
+      function goBack(folderId) {
+        if ($("#" + folderId).is(":last-child")) return; // Do nothing if last child
+        if (folderId === 1) {
+          $("#folderPath div:last-child").remove();
+        } else {
+          $("#" + folderId).nextAll().remove();
+        }
+        getFolderContents($("#folderPath div:last-child").attr('id'));
+      }
+
+      function pickFolder() {
+        var folderId = $("#folderPath div:last-child").attr('id');
+        $("#pickButton").val("Working...").addClass("working").prop("disabled", true);
+        $("#folderList").prop("disabled", true);
+        
+        google.script.run.withSuccessHandler(afterSet).FP_returnFolderId(folderId);
+        
+        function afterSet(result) {
+          google.script.host.close();
+        }
+      }
+    </script>
+    <style>
+      body {
+        margin: 0;
+        padding: 10px;
+        font-family: 'Arial', sans-serif;
+        background: linear-gradient(135deg, #e0f7fa, #f0f4f8);
+        color: #1a2e44;
+        font-size: 13px;
+      }
+      input[type=button] {
+        padding: 5px 10px;
+        border-radius: 4px;
+        background-color: #4fabc9;
+        color: #ffffff;
+        border: none;
+        cursor: pointer;
+      }
+      input[type=button]:hover {
+        background-color: #4298b5;
+      }
+      input[type=button].working {
+        font-style: italic;
+        background-color: #b3e5fc;
+      }
+      #folderPath {
+        margin: 8px 0;
+        background: rgba(255, 255, 255, 0.85);
+        padding: 6px;
+        border-radius: 4px;
+        border: 1px solid #b3e5fc;
+      }
+      #folderPath div span.folder {
+        text-decoration: underline;
+        color: #0288d1;
+        cursor: pointer;
+      }
+      #folderPath div span.folder:hover {
+        color: #01579b;
+      }
+      #folderPath div span.hierarchy {
+        color: #455a64;
+        font-family: 'Courier New', Courier, monospace;
+        white-space: pre;
+      }
+      #folderPath div:last-child span.folder {
+        font-weight: 600;
+        cursor: auto;
+      }
+      #folderList, #fileList {
+        margin: 6px 0;
+        padding: 4px;
+        border-radius: 4px;
+        border: 1px solid #b0bec5;
+        background: rgba(255, 255, 255, 0.9);
+        width: 100%;
+      }
+      #folderList option:first-child, #fileList option {
+        color: #1a2e44;
+        padding: 2px 4px;
+      }
+      .text {
+        color: #01579b;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="text">Pick the folder where files for attachment are stored.</div>
+    <div id="folderPath">
+      <div><span id="root" class="folder" onclick="goBack(this.id)">My Drive</span></div>
+    </div>
+    <input type="button" id="pickButton" class="action" value="Pick This Folder" 
+      onclick="pickFolder()" tabindex="0" aria-label="Confirm folder selection">
+    <select id="folderList" onchange="goSubFolder()" tabindex="0" aria-label="Choose a subfolder"></select>
+    <div class="text">Files in this folder:</div>
+    <select id="fileList" size="5" disabled></select>
+  </body>
+</html>
