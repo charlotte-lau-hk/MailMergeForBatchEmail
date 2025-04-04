@@ -520,7 +520,7 @@ function initializeSheets_() {
     "Datasheet": {
       data: [
         [ "To Send", "Done?", "Email Address to Send", "Template", "Attachment List", "Subfolder", "UserID", "UserName", "X1", "X2", "X3", "imgfile1", "qrdata1", "imglink1"],
-        [ "Yes", "", currentUser, "Template1", "", "", "1001", "Alice Chan", "Physics", "Chemistry", "Biology", "https://raw.githubusercontent.com/charlotte-lau-hk/MailMergeForBatchEmail/master/test-data/sunset2.jpg", "sunset1.jpg"],
+        [ "Yes", "", currentUser, "Template1", "", "", "1001", "Alice Chan", "Physics", "Chemistry", "Biology", "sunset1.jpg", "https://github.com/charlotte-lau-hk",  "https://raw.githubusercontent.com/charlotte-lau-hk/MailMergeForBatchEmail/master/test-data/sunset2.jpg"],
         [ "", "", "user@example.com", "Template1", "ABC.pdf,PQR.pdf", "", "1002", "Bob Wong", "Geography", "History", "Economics", "", "", ""],
         [ "", "", "user@example.com", "Template1", "XYZ.pdf", "subfolder1", "1003", "Cathy Lee", "Literature", "Visual Arts", "Music", "", "", ""]
       ],
