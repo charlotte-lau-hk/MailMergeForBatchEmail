@@ -25,7 +25,7 @@ Version 9.0 introduces several enhancements to improve functionality and user ex
 1. **Make a Copy of the Google Sheet**:
    - Click [this link](https://docs.google.com/spreadsheets/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy) to make a copy of the pre-configured Google Sheet, which includes all necessary scripts and templates.
 2. **Run "Check Mail Quota" to Authorize**:
-   - Open the copied Google Sheet, then go to the menu "Mail Merge for Batch Email" > " Ascending "📬 Check Mail Quota" to activate the authorization process and grant the necessary permissions (e.g., access to Google Drive, Gmail, and Sheets).
+   - Open the copied Google Sheet, then go to the menu "Mail Merge for Batch Email" > "📬 Check Mail Quota" to activate the authorization process and grant the necessary permissions (e.g., access to Google Drive, Gmail, and Sheets).
 3. **Initialize Sheets**:
    - From the Google Sheet, select "Mail Merge for Batch Email" > "📑 Initialize Sheets" to set up the necessary worksheets (`Dashboard`, `Datasheet`, `Settings`, `Template1`, `Usage`). The `Datasheet` will contain three lines of sample data, which you can remove, but keep the first 6 columns (A to F) for proper functionality.
 4. **Configure Settings**:
