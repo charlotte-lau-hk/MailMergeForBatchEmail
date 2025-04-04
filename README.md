@@ -100,10 +100,10 @@ When editing the `Datasheet`:
 ## Credits
 - Uses [Showdown v2.1.0](https://github.com/showdownjs/showdown) for Markdown-to-HTML conversion, licensed under [MIT](https://opensource.org/licenses/MIT).
 - Folder picker inspired by Google Apps Script tutorials on Drive integration.
-- *Note*: The email merge logic was originally adapted from Google’s "Mail Merge Tutorial," but the reference (`https://developers.google.com/apps-script/articles/mail_merge`) is no longer available (404 error as of 2025).
+- *Note*: The email merge logic was originally adapted from Google's "Mail Merge Tutorial" in 2016, but the reference (`https://developers.google.com/apps-script/articles/mail_merge`) is no longer available (404 error as of 2025).
 
 ## License
-This project is licensed under [GPL-3.0](LICENSE).
+This project is licensed under [MIT](LICENSE).
 
 ## Contributing
 Suggestions and bug reports are welcome! Please open an [issue](https://github.com/charlotte-lau-hk/MailMergeForBatchEmail/issues) or submit a pull request.
