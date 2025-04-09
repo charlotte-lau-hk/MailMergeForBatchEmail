@@ -1,7 +1,6 @@
 # Mail Merge for Batch Email
 
-A Google Apps Script to send batch emails with rich-text, inline images, QR codes, attachments, and dynamic previews, integrated with Google Sheets and Drive.
-
+A Google Apps Script to send batch emails with rich-text, inline images, QR codes, attachments, and dynamic previews, integrated with Google Sheets and Drive.  
 (Click [this direct link](https://docs.google.com/spreadsheets/u/0/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy) to make a copy of the pre-configured Google Sheets file which scripts)
 
 [![Version](https://img.shields.io/badge/version-9.0.1-F1C40F)](https://docs.google.com/spreadsheets/u/0/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy)  
