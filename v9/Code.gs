@@ -1,7 +1,7 @@
 /*******************************************************
- * Mail Merge for Batch Email (v9.0)
+ * Mail Merge for Batch Email (v9.0.1)
  * Maintained by Charlotte Lau
- * Last Update: 2025-04-04
+ * Last Update: 2025-04-09 
  * GitHub: https://github.com/charlotte-lau-hk/MailMergeForBatchEmail
  * Features: Rich-text, inline images, QR codes, attachments, multiple templates,
  *   auto-rerun, AI template suggestions, dynamic email preview
@@ -261,7 +261,7 @@ function sendEmails_() {
   // start sending emails
   let now = new Date();
   let timeRun = Utilities.formatDate(now, "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  PropertiesService.getDocumentProperties().setProperty("runTime", now.getTime());
+  PropertiesService.getDocumentProperties().setProperty("runTime", now.getTime().toString());
   let ss = SpreadsheetApp.getActiveSpreadsheet();
   if (ss == null) {
     // get id from properties in case of time-driven trigger
@@ -520,7 +520,7 @@ function initializeSheets_() {
     "Datasheet": {
       data: [
         [ "To Send", "Done?", "Email Address to Send", "Template", "Attachment List", "Subfolder", "UserID", "UserName", "X1", "X2", "X3", "imgfile1", "qrdata1", "imglink1"],
-        [ "Yes", "", currentUser, "Template1", "", "", "1001", "Alice Chan", "Physics", "Chemistry", "Biology", "sunset1.jpg", "https://github.com/charlotte-lau-hk",  "https://raw.githubusercontent.com/charlotte-lau-hk/MailMergeForBatchEmail/master/test-data/sunset2.jpg"],
+        [ "Yes", "", "user@example.com", "Template1", "", "", "1001", "Alice Chan", "Physics", "Chemistry", "Biology", "sunset1.jpg", "https://github.com/charlotte-lau-hk", "https://raw.githubusercontent.com/charlotte-lau-hk/MailMergeForBatchEmail/master/test-data/sunset2.jpg"],
         [ "", "", "user@example.com", "Template1", "ABC.pdf,PQR.pdf", "", "1002", "Bob Wong", "Geography", "History", "Economics", "", "", ""],
         [ "", "", "user@example.com", "Template1", "XYZ.pdf", "subfolder1", "1003", "Cathy Lee", "Literature", "Visual Arts", "Music", "", "", ""]
       ],
@@ -619,10 +619,11 @@ function initializeSheets_() {
 }
 
 // [2025-04-04] New timeout handleing mechanism
+// [2025-04-09] Update to use BigInt
 function isTimedOut_() {
-  let now = Date.now();
-  let lastRun = parseInt(PropertiesService.getDocumentProperties().getProperty("runTime"));
-  if (isNaN(lastRun) || now - lastRun >= 330 * 1000) {
+  let now = BigInt(Date.now());
+  let lastRun = BigInt(PropertiesService.getDocumentProperties().getProperty("runTime") || 0);
+  if (now - lastRun >= 330 * 1000) {
     Logger.log("Timeout, prepare for re-run");
     return true;
   } else {
