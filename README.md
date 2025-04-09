@@ -2,6 +2,8 @@
 
 A Google Apps Script to send batch emails with rich-text, inline images, QR codes, attachments, and dynamic previews, integrated with Google Sheets and Drive.
 
+(Click [this direct link](https://docs.google.com/spreadsheets/u/0/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy) to make a copy of the pre-configured Google Sheets file which scripts)
+
 [![Version](https://img.shields.io/badge/version-9.0.1-F1C40F)](https://docs.google.com/spreadsheets/u/0/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy)  
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Charlotte%20Lau-0288D1?logo=linkedin)](https://www.linkedin.com/in/charlotte-lau-hk/)  
 [![Website](https://img.shields.io/badge/Website-syclau.hk-D81B60)](https://www.syclau.hk)  
@@ -22,7 +24,7 @@ Version 9.0 introduces several enhancements to improve functionality and user ex
 
 ## Setup
 
-1. **Make a Copy of the Google Sheet**: Click [this link](https://docs.google.com/spreadsheets/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy) to make a copy of the pre-configured Google Sheet, which includes all necessary scripts and templates.
+1. **Make a Copy of the Google Sheet**: Click [this link](https://docs.google.com/spreadsheets/u/0/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy) to make a copy of the pre-configured Google Sheet, which includes all necessary scripts and templates.
 2. **Run "Check Mail Quota" to Authorize**:
 Open the copied Google Sheet, then go to the menu "Mail Merge for Batch Email" > "📬 Check Mail Quota" to activate the authorization process and grant the necessary permissions (e.g., access to Google Drive, Gmail, and Sheets).
 3. **Initialize Sheets**:
