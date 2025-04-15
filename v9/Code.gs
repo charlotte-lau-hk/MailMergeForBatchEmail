@@ -656,4 +656,13 @@ function clearTriggers_() {
     ScriptApp.deleteTrigger(triggers[i]);
     Utilities.sleep(1000);
   }
+// Clear triggers
+function clearTriggers_() {
+  let triggers = ScriptApp.getProjectTriggers();
+  for (let i = 0; i < triggers.length; i++) {
+    Logger.log("Deleting trigger: " + triggers[i].getUniqueId().toString());
+    ScriptApp.deleteTrigger(triggers[i]);
+    Utilities.sleep(1000);
+  }
+  PropertiesService.getDocumentProperties().deleteProperty("triggerId");
 }
