@@ -1,7 +1,7 @@
 /*******************************************************
- * Mail Merge for Batch Email (v9.0.1)
+ * Mail Merge for Batch Email (v9.0.4)
  * Maintained by Charlotte Lau
- * Last Update: 2025-04-09 
+ * Last Update: 2025-07-08 
  * GitHub: https://github.com/charlotte-lau-hk/MailMergeForBatchEmail
  * Features: Rich-text, inline images, QR codes, attachments, multiple templates,
  *   auto-rerun, AI template suggestions, dynamic email preview
