@@ -416,7 +416,7 @@ function sendEmails_() {
     if (bccList != "") opts['bcc'] = bccList;
     if (sendAs != "") opts['name'] = sendAs;
     if (replyTo != "") opts['replyTo'] = replyTo;
-    if (noReply) opts['noReply'] = true;
+    if (noReply == true || String(noReply).toLowerCase() == "true") opts['noReply'] = true;
     if (Object.keys(inlineImages).length>0) opts['inlineImages'] = inlineImages;
     opts['htmlBody'] = htmlBody;
 
