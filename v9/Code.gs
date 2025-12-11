@@ -1,7 +1,7 @@
 /*******************************************************
- * Mail Merge for Batch Email (v9.0.4)
+ * Mail Merge for Batch Email (v9.0.5)
  * Maintained by Charlotte Lau
- * Last Update: 2025-07-08 
+ * Last Update: 2025-12-11 (default qr api url changed)
  * GitHub: https://github.com/charlotte-lau-hk/MailMergeForBatchEmail
  * Features: Rich-text, inline images, QR codes, attachments, multiple templates,
  *   auto-rerun, AI template suggestions, dynamic email preview
@@ -127,7 +127,7 @@ function validateSettings_() {
     "sendAs":  settingsSheet.getRange("B5").getValue(),
     "replyTo": settingsSheet.getRange("B6").getValue(),
     "noReply": settingsSheet.getRange("B7").getValue(),
-    "qrApiUrl": settingsSheet.getRange("B8").getValue() || "https://qrcode.tec-it.com/API/QRCode?quietzone=2&dpi=150&&data=" // default QR API URL
+    "qrApiUrl": settingsSheet.getRange("B8").getValue() || "https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=" // default QR API URL
   });
   // clear status on dashboard
   updateDashboard_(ss, {"status": "Validation done."});
