@@ -1,0 +1,74 @@
+# Point the "make a copy" short link to the current release file.
+# Runs when a release tag (v*) is pushed, or manually from the Actions tab.
+# Needs: secret CLOUDFLARE_API_TOKEN, variable CLOUDFLARE_ZONE_ID.
+name: Update copy redirect
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  update-redirect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read release.json
+        id: rel
+        run: |
+          echo "version=$(jq -r .version release.json)"     >> "$GITHUB_OUTPUT"
+          echo "fileId=$(jq -r .fileId release.json)"       >> "$GITHUB_OUTPUT"
+          echo "shortLink=$(jq -r .shortLink release.json)" >> "$GITHUB_OUTPUT"
+          echo "ruleName=$(jq -r .ruleName release.json)"   >> "$GITHUB_OUTPUT"
+
+      - name: Check tag matches release.json
+        if: github.ref_type == 'tag'
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "v${{ steps.rel.outputs.version }}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match release.json version ${{ steps.rel.outputs.version }}"
+            exit 1
+          fi
+
+      - name: Update Cloudflare redirect rule
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          RULE_NAME: ${{ steps.rel.outputs.ruleName }}
+          TARGET: https://docs.google.com/spreadsheets/d/${{ steps.rel.outputs.fileId }}/copy
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/rulesets"
+          auth=(-H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json")
+
+          ruleset=$(curl -sf "${auth[@]}" "${api}/phases/http_request_dynamic_redirect/entrypoint")
+          rulesetId=$(echo "$ruleset" | jq -r .result.id)
+          rule=$(echo "$ruleset" | jq -c --arg n "$RULE_NAME" '.result.rules[] | select(.description == $n)')
+          if [ -z "$rule" ]; then
+            echo "::error::Redirect rule named '$RULE_NAME' not found. Create it in the Cloudflare dashboard first."
+            exit 1
+          fi
+          ruleId=$(echo "$rule" | jq -r .id)
+
+          # Keep the rule's existing match expression; change only the target URL.
+          body=$(echo "$rule" | jq -c --arg url "$TARGET" '{
+            description, expression, enabled,
+            action: "redirect",
+            action_parameters: { from_value: {
+              target_url: { value: $url },
+              status_code: 302,
+              preserve_query_string: false } } }')
+
+          curl -sf -X PATCH "${auth[@]}" "${api}/${rulesetId}/rules/${ruleId}" --data "$body" \
+            | jq -e '.success' > /dev/null
+          echo "Redirect now points to: $TARGET"
+
+      - name: Verify short link
+        run: |
+          sleep 20
+          location=$(curl -sI "${{ steps.rel.outputs.shortLink }}" | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}')
+          echo "Short link redirects to: $location"
+          case "$location" in
+            *"${{ steps.rel.outputs.fileId }}/copy"*) echo "OK" ;;
+            *) echo "::warning::Short link does not point to the new file yet (may need a minute to propagate)." ;;
+          esac
