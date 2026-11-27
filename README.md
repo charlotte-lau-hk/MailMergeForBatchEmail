@@ -1,16 +1,22 @@
 # Mail Merge for Batch Email
 
 A Google Apps Script to send batch emails with rich-text, inline images, QR codes, attachments, and dynamic previews, integrated with Google Sheets and Drive.  
-**(Click [this direct link](https://syclau.hk/mailmerge) to make a copy of the pre-configured Google Sheets file which scripts)**
+**(Click [this direct link](https://syclau.hk/mailmerge) to make a copy of the pre-configured Google Sheets file with the scripts)**
 
-[![Version](https://img.shields.io/badge/version-9.0.4-F1C40F)](https://docs.google.com/spreadsheets/u/0/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy)  
+[![Version](https://img.shields.io/badge/version-9.1.1-F1C40F)](https://syclau.hk/mailmerge)  
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Charlotte%20Lau-0288D1?logo=linkedin)](https://www.linkedin.com/in/charlotte-lau-hk/)  
 [![Website](https://img.shields.io/badge/Website-syclau.hk-D81B60)](https://www.syclau.hk)  
-*Last Updated: 2025-07-08 (bug fix)*
+*Last Updated: 2026-11-27 (v9.1.1)*
 
 ## Overview
 
 `MailMergeForBatchEmail` is a powerful tool for sending personalized batch emails using Google Sheets as a data source and Google Drive for attachments. It supports rich-text email bodies (via Markdown), inline images, QR codes, and attachments from a selected folder. The script includes a dynamic folder picker, email preview with navigation, and automatic rerun for large batches, making it ideal for educators, administrators, or anyone needing to send customized emails in bulk.
+
+## What’s New in v9.1
+
+- **QR Codes Generated Within the Script**: QR codes are now created by the bundled [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) library instead of an external web API. The "QR API URL" setting has been removed.
+- **Faster Sending**: Per-email Dashboard updates have been removed to speed up batch processing.
+- **v9.1.1 Bug Fix**: Fixed an error that stopped sending after the first email.
 
 ## What’s New in v9.0
 
@@ -23,7 +29,7 @@ Version 9.0 introduces several enhancements to improve functionality and user ex
 
 ## Setup
 
-1. **Make a Copy of the Google Sheet**: Click [this link](https://docs.google.com/spreadsheets/u/0/d/1u-99RviC_9bjV_RnYVvloFawD2VCyq1AR9X-Z8meRzc/copy) to make a copy of the pre-configured Google Sheet, which includes all necessary scripts and templates.
+1. **Make a Copy of the Google Sheet**: Click [this link](https://syclau.hk/mailmerge) to make a copy of the pre-configured Google Sheet, which includes all necessary scripts and templates.
 2. **Run "Check Mail Quota" to Authorize**:
 Open the copied Google Sheet, then go to the menu "Mail Merge for Batch Email" > "📬 Check Mail Quota" to activate the authorization process and grant the necessary permissions (e.g., access to Google Drive, Gmail, and Sheets).
 3. **Initialize Sheets**:
@@ -52,7 +58,6 @@ Edit these in the `Settings` sheet:
 - **Send as**: The name to display as the sender (e.g., `School Admin`); leave blank to use your default name.
 - **Reply to**: Email address for replies (e.g., `admin@example.com`); leave blank to use your email.
 - **No reply**: Set to `TRUE` to prevent replies; `FALSE` to allow replies.
-- **QR API URL**: URL for generating QR codes (default: `https://qrcode.tec-it.com/API/QRCode?quietzone=2&dpi=150&&data=`); can be customized.
 
 **Example `Settings` Sheet:**
 | Settings   | Values                          | Remarks                              |
@@ -63,7 +68,6 @@ Edit these in the `Settings` sheet:
 | Send as    | School Admin                    | The name to show as sender           |
 | Reply to   | admin@example.com               | Email address to receive user reply  |
 | No reply   | FALSE                           | No reply: TRUE or FALSE              |
-| QR API URL | https://qrcode.tec-it.com/API/QRCode?quietzone=2&dpi=150&&data= | Default QR API URL                   |
 
 ### Special Note for Datasheet
 
@@ -90,7 +94,6 @@ When editing the `Datasheet`:
 - **Timeout**: Limited to 6 minutes for all users as of today, but the auto-rerun feature will complete the job automatically.
 - **Quotas and Runtime Reference**: See [Google’s Quotas Page](https://developers.google.com/apps-script/guides/services/quotas) for details on mail quotas and script runtime limits.
 - **Attachments**: Files must exist in the selected folder; missing files are skipped with an error logged.
-- **QR Codes**: Requires an internet connection to fetch QR codes via the API URL.
 - **Markdown Support**: Limited to features supported by Showdown v2.1.0 (e.g., tables, underline).
 
 ## Usage Scenarios
@@ -100,6 +103,7 @@ When editing the `Datasheet`:
 
 ## Credits
 - Uses [Showdown v2.1.0](https://github.com/showdownjs/showdown) for Markdown-to-HTML conversion, licensed under [MIT](https://opensource.org/licenses/MIT).
+- Uses [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) by Kazuhiko Arase for QR code generation, licensed under [MIT](https://opensource.org/licenses/MIT).
 - Folder picker inspired by Google Apps Script tutorials on Drive integration.
 - *Note*: The email merge logic was originally adapted from Google's "Mail Merge Tutorial" in 2016, but the reference (`https://developers.google.com/apps-script/articles/mail_merge`) is no longer available (404 error as of 2025).
 
