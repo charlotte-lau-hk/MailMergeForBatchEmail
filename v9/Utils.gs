@@ -35,7 +35,6 @@ function fillInTemplateFromObject_(template, data, opts = null) {
         if (!opts) {
           variableData = "<img src='cid:"+variableHead+"'>";  
         } else {
-          let qrApiUrl = opts["qrApiUrl"];
           let folder = opts["folder"];
           if (variableHead.substring(0,7)=="imglink") {
             variableData = "<img src='"+variableData+"'>";  
@@ -48,11 +47,11 @@ function fillInTemplateFromObject_(template, data, opts = null) {
               }
             } else {
               // this case: variableHead.substring(0,6)=="qrdata"
-              var qrImgLnk = qrApiUrl + encodeURI(variableData);
+              // [2026-11-27] Same QR library as sending (QR API URL was removed in v9.1)
               try {
-                imgBlob = UrlFetchApp.fetch(qrImgLnk).getBlob().setName(variableHead);
+                imgBlob = makeQrBlob_(variableData, variableHead);
               } catch (e) {
-                Logger.log("QR code fetch failed for " + variableHead + ": " + e.message);
+                Logger.log("QR code generation failed for " + variableHead + ": " + e.message);
               }
             }
             if (imgBlob) {
@@ -105,6 +104,7 @@ function getObjects_(data, keys) {
       hasData = true;
     }
     if (hasData) {
+      object.__rowIndex = i; // [2026-11-27] position in the range, used to write status to the right row
       objects.push(object);
     }
   }

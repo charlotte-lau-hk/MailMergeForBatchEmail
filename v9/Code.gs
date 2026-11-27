@@ -1,8 +1,8 @@
 // @ts-nocheck
 /*******************************************************
- * Mail Merge for Batch Email (v9.1.1)
+ * Mail Merge for Batch Email (v9.2.0)
  * Maintained by Charlotte Lau
- * Last Update: 2026-11-26 (bug fix, use JS library for QR code generation)
+ * Last Update: 2026-11-27 (bug fixes: row tracking, subfolders, preview QR codes, error handling)
  * GitHub: https://github.com/charlotte-lau-hk/MailMergeForBatchEmail
  * Features: Rich-text, inline images, QR codes, attachments, multiple templates,
  *   auto-rerun, AI template suggestions, dynamic email preview
@@ -124,7 +124,7 @@ function validateSettings_() {
   documentProperties.setProperties({
     "ccList": ccList,
     "bccList": bccList,
-    "folderId": folderId,
+    "folderId": folderId || "",
     "sendAs":  settingsSheet.getRange("B5").getValue(),
     "replyTo": settingsSheet.getRange("B6").getValue(),
     "noReply": settingsSheet.getRange("B7").getValue()
@@ -133,6 +133,13 @@ function validateSettings_() {
   updateDashboard_(ss, {"status": "Validation done."});
 
   return true;
+}
+
+// [2026-11-27] Single rule for "To Send": TRUE (checkbox) or "Y"/"Yes" (any case)
+function isMarkedToSend_(value) {
+  if (typeof value == "boolean") return value;
+  if (typeof value == "string") return ["y", "yes"].indexOf(value.trim().toLowerCase()) != -1;
+  return false;
 }
 
 // Email address validation
@@ -182,11 +189,7 @@ function listRowsToSend_() {
     let toSend = rangeData[i][0];
     let done = rangeData[i][1];
     // only those marked to send but not yet sent
-    let yesTxt = new Array("y", "yes");
-    if ((typeof toSend == "undefined") || 
-        ((typeof toSend == "string") && (yesTxt.indexOf(toSend.toLowerCase()) == -1)) ||
-        ((typeof toSend == "boolean" && (!toSend)))
-       ){
+    if (!isMarkedToSend_(toSend)) {
       continue;
     }
     if ((typeof done == "string") && (done == "Done")) {
@@ -306,11 +309,10 @@ function sendEmails_() {
   for (var i=0; i<objects.length; ++i) {
     // Get a row object
     var rowData = objects[i];
+    // [2026-11-27] Actual sheet row of this record (empty rows are skipped by getRowsData_)
+    var rowNum = dataRange.getRow() + rowData.__rowIndex;
 
-    var toSend = rowData.toSend;
-    if ((typeof toSend == "undefined") ||
-        ((typeof toSend == "string") && (toSend.toLowerCase() != "yes")) ||
-        ((typeof toSend == "boolean") && (!toSend))) {
+    if (!isMarkedToSend_(rowData.toSend)) {
       Logger.log("Skipped (not to send): "+rowData.emailAddressToSend);
       continue;
     }
@@ -323,7 +325,7 @@ function sendEmails_() {
 
     if (!isValidEmail_(rowData.emailAddressToSend)) {
       Logger.log("Invalid email: " + rowData.emailAddressToSend);
-      dataSheet.getRange(i+2, 2).setValue("Error: Invalid email");
+      dataSheet.getRange(rowNum, 2).setValue("Error: Invalid email");
       continue;
     }
 
@@ -331,7 +333,7 @@ function sendEmails_() {
     var templateSheet = ss.getSheetByName(template);
     if (!templateSheet) {
       Logger.log("Skipped (template not found): "+template);
-      dataSheet.getRange(i+2,2).setValue("Error and Skipped (template not found)");
+      dataSheet.getRange(rowNum, 2).setValue("Error and Skipped (template not found)");
       continue;
     }
 
@@ -358,19 +360,20 @@ function sendEmails_() {
     if ((rowData.attachmentList !== undefined) && (rowData.attachmentList != "")) {
       fileList = rowData.attachmentList.split(',').map(s => s.trim());
     }
+    // [2026-11-27] Folder for this row only (subfolder no longer carries over to later rows)
+    var rowFolder = folder;
+    if ((rowFolder != null) && (rowData.subfolder !== undefined)) {
+      var subfolders = rowFolder.getFoldersByName(rowData.subfolder);
+      if (subfolders.hasNext()) {
+        rowFolder = subfolders.next();
+      }
+    }
     // If no folderID given BUT attachment list is not empty, skip this email!
-    if ((folder == null) && (fileList.length >0)) {
+    if ((rowFolder == null) && (fileList.length >0)) {
       attachmentError++;
     } else {
-      // check sub-folder
-      if (rowData.subfolder !== undefined) {
-        var subfolders = folder.getFoldersByName(rowData.subfolder);
-        if (subfolders.hasNext()) {
-          folder = subfolders.next();
-        }
-      }
       for (var j=0; j<fileList.length; j++) {
-        var files = folder.getFilesByName(fileList[j]);
+        var files = rowFolder.getFilesByName(fileList[j]);
         if (files.hasNext()) {
           // note: assume only one file with the same name in the folder
           attachments.push(files.next());
@@ -383,21 +386,33 @@ function sendEmails_() {
 
     if (attachmentError) {
       Logger.log("Skipped (attachment error): "+rowData.emailAddressToSend);
-      dataSheet.getRange(i+2,2).setValue("Error and Skipped (attachment error)");
+      dataSheet.getRange(rowNum, 2).setValue("Error and Skipped (attachment error)");
       continue;
     }
 
     // [2022-04-21] Prepare inline images
+    // [2026-11-27] An image that cannot be loaded skips this row instead of stopping the run
     var inlineImages = new Object();
+    var imageError = "";
     for (const [key, value] of Object.entries(rowData)) {
       if (key.substring(0,7)=="imglink" && value != "") {
-        var imgBlob = UrlFetchApp.fetch(value).getBlob().setName(key);
-        inlineImages[key] = imgBlob;
+        try {
+          inlineImages[key] = UrlFetchApp.fetch(value).getBlob().setName(key);
+        } catch (e) {
+          imageError = key + " cannot be fetched";
+          break;
+        }
       } else if (key.substring(0,7)=="imgfile" && value != "") {
-        var files = folder.getFilesByName(value);
+        if (rowFolder == null) {
+          imageError = key + " needs a Folder ID";
+          break;
+        }
+        var files = rowFolder.getFilesByName(value);
         if (files.hasNext()) {
-          var imgBlob = files.next().getBlob().setName(key);
-          inlineImages[key] = imgBlob;
+          inlineImages[key] = files.next().getBlob().setName(key);
+        } else {
+          imageError = key + " file not found";
+          break;
         }
       } else if (key.substring(0,6)=="qrdata" && value != "") {
         // [2026-10-09] use qrcode javascript library
@@ -408,6 +423,12 @@ function sendEmails_() {
           Logger.log("QR code image generation failed for " + value + ": " + e.message);
         }
       }
+    }
+
+    if (imageError) {
+      Logger.log("Skipped (image error: " + imageError + "): " + rowData.emailAddressToSend);
+      dataSheet.getRange(rowNum, 2).setValue("Error and Skipped (image error: " + imageError + ")");
+      continue;
     }
    
     // Send out now
@@ -428,7 +449,7 @@ function sendEmails_() {
     //updateDashboard_(ss, {"status": logMesage});
 
     // Mark "Done" in Datasheet
-    dataSheet.getRange(i+2,2).setValue("Done");
+    dataSheet.getRange(rowNum, 2).setValue("Done");
 
     // Update email quota remaining [2026-10-09] Comment out to speed up processing
     //MailApp.getRemainingDailyQuota();
@@ -480,7 +501,7 @@ function initializeSheets_() {
   const defaults = {
     "Dashboard": {
       data: [
-          [ "Total Emails", '=countif(Datasheet!A:A,"Yes")+countif(Datasheet!A:A,TRUE)' ],
+          [ "Total Emails", '=countif(Datasheet!A:A,"Yes")+countif(Datasheet!A:A,"Y")+countif(Datasheet!A:A,TRUE)' ],
           [ "Emails Done", '=countif(Datasheet!B:B,"Done")' ],
           [ "Emails Remaining", "=B1-B2" ],
           [ "Progress", "=TO_PERCENT(B2/B1)" ],
@@ -548,7 +569,7 @@ function initializeSheets_() {
     },
     "Usage": {
       data: [
-        [ "Mail Merge for Batch Email (v9.0)" ],
+        [ "Mail Merge for Batch Email (v9.2)" ],
         [ "Maintained by: Charlotte Lau" ],
         [ "GitHub: https://github.com/charlotte-lau-hk/MailMergeForBatchEmail" ],
         [ "Guide: https://www.syclau.hk/mail-merge-for-batch-email" ],
