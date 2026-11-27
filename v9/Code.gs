@@ -1,7 +1,8 @@
+// @ts-nocheck
 /*******************************************************
- * Mail Merge for Batch Email (v9.0.5)
+ * Mail Merge for Batch Email (v9.1.1)
  * Maintained by Charlotte Lau
- * Last Update: 2025-12-11 (default qr api url changed)
+ * Last Update: 2026-11-26 (bug fix, use JS library for QR code generation)
  * GitHub: https://github.com/charlotte-lau-hk/MailMergeForBatchEmail
  * Features: Rich-text, inline images, QR codes, attachments, multiple templates,
  *   auto-rerun, AI template suggestions, dynamic email preview
@@ -126,8 +127,7 @@ function validateSettings_() {
     "folderId": folderId,
     "sendAs":  settingsSheet.getRange("B5").getValue(),
     "replyTo": settingsSheet.getRange("B6").getValue(),
-    "noReply": settingsSheet.getRange("B7").getValue(),
-    "qrApiUrl": settingsSheet.getRange("B8").getValue() || "https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=" // default QR API URL
+    "noReply": settingsSheet.getRange("B7").getValue()
   });
   // clear status on dashboard
   updateDashboard_(ss, {"status": "Validation done."});
@@ -280,7 +280,7 @@ function sendEmails_() {
   // Get settings configurations
   const documentProperties = PropertiesService.getDocumentProperties();
   let settings = documentProperties.getProperties(); // at this stage, property must exist
-  let {ccList, bccList, folderId, sendAs, replyTo, noReply, qrApiUrl} = settings;
+  let {ccList, bccList, folderId, sendAs, replyTo, noReply} = settings;
   if (folderId.length==0) folderId = null;
 
   // converter for showdown [added in v5.00]
@@ -336,7 +336,8 @@ function sendEmails_() {
     }
 
     // Ready to send
-    updateDashboard_(ss, {"status": "Sending email to " + rowData.emailAddressToSend});
+    // [2026-10-09] Comment out to speed up processing
+    //updateDashboard_(ss, {"status": "Sending email to " + rowData.emailAddressToSend});
     var subjTemplate = templateSheet.getRange("B1").getValue();
     var bodyTemplate = templateSheet.getRange("B2").getValue();
 
@@ -399,12 +400,12 @@ function sendEmails_() {
           inlineImages[key] = imgBlob;
         }
       } else if (key.substring(0,6)=="qrdata" && value != "") {
-        var qrImgLnk = qrApiUrl + encodeURI(value);
+        // [2026-10-09] use qrcode javascript library
         try {
-          var imgBlob = UrlFetchApp.fetch(qrImgLnk).getBlob().setName(key);
+          var imgBlob = makeQrBlob_(value, key)
           inlineImages[key] = imgBlob;
         } catch (e) {
-          Logger.log("QR code fetch failed for " + value + ": " + e.message);
+          Logger.log("QR code image generation failed for " + value + ": " + e.message);
         }
       }
     }
@@ -422,18 +423,20 @@ function sendEmails_() {
 
     // Ref: https://developers.google.com/apps-script/reference/mail/mail-app#sendEmail(String,String,String,Object)
     MailApp.sendEmail(rowData.emailAddressToSend, emailSubject, emailBody, opts);
-    let logMesage = "Mail sent to "+rowData.emailAddressToSend+": \""+emailSubject+"\" with "+attachments.length+" attachment(s).";
-    updateDashboard_(ss, {"status": logMesage});
+    // [2026-10-09] Comment out to speed up processing
+    //let logMesage = "Mail sent to "+rowData.emailAddressToSend+": \""+emailSubject+"\" with "+attachments.length+" attachment(s).";
+    //updateDashboard_(ss, {"status": logMesage});
 
     // Mark "Done" in Datasheet
     dataSheet.getRange(i+2,2).setValue("Done");
 
-    // Update email quota remaining
-    MailApp.getRemainingDailyQuota();
-    updateDashboard_(ss, {"quota": emailQuotaRemaining});
+    // Update email quota remaining [2026-10-09] Comment out to speed up processing
+    //MailApp.getRemainingDailyQuota();
+    //updateDashboard_(ss, {"quota": emailQuotaRemaining});
 
     // Log this action
-    Logger.log(logMesage);
+    //Logger.log(logMesage);
+    SpreadsheetApp.flush();
 
     // Checking time-oout
     if (isTimedOut_()) {
@@ -445,7 +448,6 @@ function sendEmails_() {
   }
   
   // Up to this point, all records processed
-  updateDashboard_(ss, {"status": "Completed"});
 
   // Send the complete log to the person running the script
   // Ref: https://developers.google.com/apps-script/reference/base/logger#getLog()
@@ -461,7 +463,7 @@ function sendEmails_() {
   emailQuotaRemaining = MailApp.getRemainingDailyQuota();
   Logger.log("Email quota remaining: "+emailQuotaRemaining);
 
-  updateDashboard_(ss, {"quota": emailQuotaRemaining});
+  updateDashboard_(ss, {"status": "Completed", "quota": emailQuotaRemaining});
 
   // Clear triggers, if any, as it is the end nnow
   clearTriggers_();
@@ -536,8 +538,7 @@ function initializeSheets_() {
         [ "Folder ID", "1TLhS8KsSIBbmR9rTYQ-dCeB-hFTQm9da", "ID of template folder, required for attachment" ],
         [ "Send as", "", "The name to show as sender" ],
         [ "Reply to", "", "Email address to receive user reply" ],
-        [ "No reply", false, "No reply: TRUE or FALSE" ],
-        [ "QR API URL", "https://qrcode.tec-it.com/API/QRCode?quietzone=2&dpi=150&&data=", "Default: https://qrcode.tec-it.com/API/QRCode?quietzone=2&dpi=150&&data=" ]
+        [ "No reply", false, "No reply: TRUE or FALSE" ]
       ],
       format: {
         "border": true,
@@ -555,7 +556,7 @@ function initializeSheets_() {
         [ "** Reference **" ],
         [ "Markdown Cheatsheet: https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet" ],
         [ "Online Markdown Editor: https://jbt.github.io/markdown-editor/" ],
-        [ "Online QR Code Generator: https://qrcode.tec-it.com/en" ]
+        [ "QR Code Generator: qrcode-generator by Kazuhiko Arase (https://github.com/kazuhikoarase/qrcode-generator)" ]
       ],
       format: {
         "firstRowBold": true
@@ -656,13 +657,14 @@ function clearTriggers_() {
     ScriptApp.deleteTrigger(triggers[i]);
     Utilities.sleep(1000);
   }
-// Clear triggers
-function clearTriggers_() {
-  let triggers = ScriptApp.getProjectTriggers();
-  for (let i = 0; i < triggers.length; i++) {
-    Logger.log("Deleting trigger: " + triggers[i].getUniqueId().toString());
-    ScriptApp.deleteTrigger(triggers[i]);
-    Utilities.sleep(1000);
-  }
   PropertiesService.getDocumentProperties().deleteProperty("triggerId");
+}
+
+// make QR blob
+function makeQrBlob_(text, key, cellPx = 13) {
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  const url = qr.createDataURL(cellPx, cellPx * 2); // margin is in pixels
+  return Utilities.newBlob(Utilities.base64Decode(url.split(',')[1]), 'image/gif', key + '.gif');
 }
