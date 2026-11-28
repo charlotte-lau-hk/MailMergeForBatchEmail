@@ -2,7 +2,7 @@
 /*******************************************************
  * Mail Merge for Batch Email (v9.2.0)
  * Maintained by Charlotte Lau
- * Last Update: 2026-11-28 (bug fixes: row tracking, subfolders, preview QR codes, error handling, menu on new sheets)
+ * Last Update: 2026-11-28 (bug fixes: row tracking, subfolders, preview QR codes, error handling, menu on new sheets, faster preview)
  * GitHub: https://github.com/charlotte-lau-hk/MailMergeForBatchEmail
  * Features: Rich-text, inline images, QR codes, attachments, multiple templates,
  *   auto-rerun, AI template suggestions, dynamic email preview

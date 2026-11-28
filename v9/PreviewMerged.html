@@ -9,6 +9,7 @@
       // Scoped state
       const state = {
         cache: {},
+        inflight: {}, // rowNum -> callbacks waiting for a request already sent
         list: [],
         idx: 0,
         converter: new showdown.Converter({ tables: true, underline: true })
@@ -25,6 +26,10 @@
           .withSuccessHandler(function(data) {
             state.list = data["list"];
             state.idx = 0;
+            if (data["first"] && state.list.length > 0) {
+              state.cache[state.list[0]] = data["first"]; // first record comes with setup
+            }
+            delete data["first"];
             showData(data);
             if (state.list.length > 0) {
               $("#list").html(state.list.map((num, idx) => "<option value='" + idx + "'>" + num + "</option>").join(""));
@@ -93,12 +98,50 @@
         }
       }
 
+      // Get a record from the cache, from a request already in flight, or from the server
+      function fetchRow(rowNum, onDone, onFail) {
+        if (state.cache[rowNum]) {
+          onDone(state.cache[rowNum]);
+          return;
+        }
+        if (state.inflight[rowNum]) {
+          state.inflight[rowNum].push({ onDone, onFail });
+          return;
+        }
+        state.inflight[rowNum] = [{ onDone, onFail }];
+        google.script.run
+          .withSuccessHandler((response) => {
+            state.cache[rowNum] = response;
+            let waiting = state.inflight[rowNum];
+            delete state.inflight[rowNum];
+            waiting.forEach(w => w.onDone(response));
+          })
+          .withFailureHandler((err) => {
+            let waiting = state.inflight[rowNum];
+            delete state.inflight[rowNum];
+            waiting.forEach(w => w.onFail(err));
+          })
+          .previewRow(rowNum);
+      }
+
+      // Load the next few records (and the previous one) in the background
+      function prefetch() {
+        [1, 2, 3, -1].forEach(offset => {
+          let i = state.idx + offset;
+          if (i >= 0 && i < state.list.length) {
+            fetchRow(state.list[i], () => {}, () => {});
+          }
+        });
+      }
+
       function loadRecord() {
+        const rowNum = state.list[state.idx];
         function displayMailContent(data) {
-          state.cache[state.list[state.idx]] = data;
+          if (state.list[state.idx] !== rowNum) return; // user has moved to another record
           showData(data);
-          showMessage("Record #" + state.list[state.idx] + " loaded.");
+          showMessage("Record #" + rowNum + " loaded.");
           $("#nav").show();
+          prefetch();
         }
 
         $("#btnFirst, #btnPrev").prop("disabled", state.idx === 0);
@@ -116,15 +159,9 @@
           doc.close();
         }
         
-        let cached = state.cache[state.list[state.idx]];
-        if (cached) {
-          displayMailContent(cached);
-        } else {
-          google.script.run
-            .withSuccessHandler((response) => displayMailContent(response))
-            .withFailureHandler((err) => showError(err.message))
-            .previewRow(state.list[state.idx]);
-        }
+        fetchRow(rowNum, displayMailContent, (err) => {
+          if (state.list[state.idx] === rowNum) showError(err.message);
+        });
       }
 
       function goRecord(delta, pos = state.idx) {

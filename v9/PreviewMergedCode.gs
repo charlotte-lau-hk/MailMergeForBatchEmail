@@ -45,6 +45,15 @@ function setupPreview() {
   }
   // check rows to send and not yet send
   setupInfo["list"] = listRowsToSend_();
+
+  // [2026-11-28] Send the first record with the setup data, saving one round trip
+  if (setupInfo["list"].length > 0) {
+    try {
+      setupInfo["first"] = previewRow(setupInfo["list"][0]);
+    } catch (e) {
+      Logger.log("Preview of first record failed: " + e.message); // the dialog will request it again
+    }
+  }
   /*
   for (let i=0; i<numRows; i++) {
     let toSend = rangeData[i][0];
