@@ -3,14 +3,25 @@
 A Google Apps Script to send batch emails with rich-text, inline images, QR codes, attachments, and dynamic previews, integrated with Google Sheets and Drive.  
 **(Click [this direct link](https://syclau.hk/mailmerge) to make a copy of the pre-configured Google Sheets file with the scripts)**
 
-[![Version](https://img.shields.io/badge/version-9.2.0-F1C40F)](https://syclau.hk/mailmerge)  
+[![Version](https://img.shields.io/badge/version-9.3.0-F1C40F)](https://syclau.hk/mailmerge)  
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Charlotte%20Lau-0288D1?logo=linkedin)](https://www.linkedin.com/in/charlotte-lau-hk/)  
 [![Website](https://img.shields.io/badge/Website-syclau.hk-D81B60)](https://www.syclau.hk)  
-*Last Updated: 2026-11-28 (v9.2.0)*
+*Last Updated: 2026-11-28 (v9.3.0)*
 
 ## Overview
 
 `MailMergeForBatchEmail` is a powerful tool for sending personalized batch emails using Google Sheets as a data source and Google Drive for attachments. It supports rich-text email bodies (via Markdown), inline images, QR codes, and attachments from a selected folder. The script includes a dynamic folder picker, email preview with navigation, and automatic rerun for large batches, making it ideal for educators, administrators, or anyone needing to send customized emails in bulk.
+
+## What’s New in v9.3
+
+- **Errors Are Written to the Row**: An unexpected error in one row is written to that row's "Done?" cell and sending continues with the next row. Only a used-up daily quota stops the run.
+- **No Double Runs**: Clicking Send while a run is in progress shows a message instead of starting a second run.
+- **One Log for the Whole Run**: When a long run continues through the automatic re-run, the log email covers all of it.
+- **Quota Handling**: Each recipient (To, Cc, Bcc) is counted. The run stops with a clear message before the daily quota runs out, and the Dashboard shows the remaining quota after each run.
+- **Readable Plain-Text Version**: Emails include a plain-text version without Markdown symbols or image tags.
+- **Data Inserted as Written**: Values containing `$&`, `` $` `` or `$'` are no longer altered.
+- **Preview Shows Errors Clearly**: A record that cannot be previewed shows the reason in the email area.
+- The log email goes to the account running the script, the sample image link uses the `main` branch, and the folder picker no longer uses `eval`.
 
 ## What’s New in v9.2
 
