@@ -70,7 +70,7 @@ function setupPreview() {
 function previewRow(rowNum) {
   const documentProperties = PropertiesService.getDocumentProperties();
   let settings = documentProperties.getProperties(); // at this stage, property must exist
-  let { folderId, qrApiUrl } = settings;
+  let { folderId } = settings;
 
   let ss = SpreadsheetApp.getActiveSpreadsheet();
   let dataSheet = ss.getSheetByName("Datasheet");
@@ -98,16 +98,18 @@ function previewRow(rowNum) {
     }
   }
 
+  // [2026-11-27] Subfolder applies to attachments and imgfile, as in sending
+  if ((folder != null) && (rowData.subfolder !== undefined)) {
+    let subfolders = folder.getFoldersByName(rowData.subfolder);
+    if (subfolders.hasNext()) {
+      folder = subfolders.next();
+      row["subfolderInfo"]["name"] = rowData.subfolder;
+      row["subfolderInfo"]["id"] = folder.getId();
+    }
+  }
+
   if ((rowData.attachmentList !== undefined) && (rowData.attachmentList != "")) {
     fileList = rowData.attachmentList.split(",").map(s => s.trim());
-    if ((folder != null) && (rowData.subfolder !== undefined)) {
-      let subfolders = folder.getFoldersByName(rowData.subfolder);
-      if (subfolders.hasNext()) {
-        folder = subfolders.next();
-        row["subfolderInfo"]["name"] = rowData.subfolder;
-        row["subfolderInfo"]["id"] = folder.getId();
-      }
-    }
     if (fileList[0].length > 0) {
       for (let j=0; j<fileList.length; j++) {
         if (folder != null) {
@@ -132,7 +134,7 @@ function previewRow(rowNum) {
     let subjTemplate = templateSheet.getRange("B1").getValue();
     let bodyTemplate = templateSheet.getRange("B2").getValue();
     row["subject"] = fillInTemplateFromObject_(subjTemplate, rowData);
-    row["body"] = fillInTemplateFromObject_(bodyTemplate, rowData, { "folder": folder, "qrApiUrl": qrApiUrl });
+    row["body"] = fillInTemplateFromObject_(bodyTemplate, rowData, { "folder": folder });
   } else {
     // template does not exist
     row["template"] += "⚠️ Not found: "+row["template"];
