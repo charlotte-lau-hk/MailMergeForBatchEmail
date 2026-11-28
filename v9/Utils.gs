@@ -62,7 +62,8 @@ function fillInTemplateFromObject_(template, data, opts = null) {
           }
         }
       }
-      email = email.replace(templateVars[i], variableData);
+      // [2026-11-28] Function replacement: "$&", "$`" and "$'" in the data are inserted as written
+      email = email.replace(templateVars[i], () => String(variableData));
     }
   }
 

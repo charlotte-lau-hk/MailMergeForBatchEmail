@@ -35,14 +35,19 @@ function FP_getFolderContents(folderId) {
   }
 }
 
+// [2026-11-28] Functions the folder picker may call (replaces eval)
+const FP_HANDLERS_ = {
+  "setAttachmentFolderId_": (folderId) => setAttachmentFolderId_(folderId)
+};
+
 // return here
 function FP_returnFolderId(folderId) {
   var handlerName = PropertiesService.getUserProperties().getProperty("FP_handler");
-  if (!handlerName || typeof eval(handlerName) !== "function") {
+  var handlerFunc = FP_HANDLERS_[handlerName];
+  if (!handlerFunc) {
     Logger.log("Invalid handler: " + handlerName);
     return;
   }
-  var handlerFunc = eval(handlerName);
   handlerFunc(folderId);
   PropertiesService.getUserProperties().deleteProperty("FP_handler"); // clear after use
 }
