@@ -170,7 +170,7 @@
           writeBody("<p style='color:#b91c1c'><b>This record cannot be previewed.</b></p>"
                     + "<p>" + $("<div>").text(err.message).html() + "</p>"
                     + "<p>Check the template and the data in this row. "
-                    + "The same problem will stop the sending run at this row.</p>");
+                    + "When sending, this row will be skipped and the error written in its Done? cell.</p>");
           $("#nav").show();
         });
       }

@@ -2,7 +2,7 @@
 /*******************************************************
  * Mail Merge for Batch Email (v9.3.0)
  * Maintained by Charlotte Lau
- * Last Update: 2026-11-28 (error handling for the whole run, lock, full-run log, quota handling, plain-text body)
+ * Last Update: 2026-11-28 (row-level error handling, lock, full-run log, quota handling, plain-text body)
  * GitHub: https://github.com/charlotte-lau-hk/MailMergeForBatchEmail
  * Features: Rich-text, inline images, QR codes, attachments, multiple templates,
  *   auto-rerun, AI template suggestions, dynamic email preview
@@ -287,7 +287,10 @@ function sendEmails_(e) {
     log_("ERROR: " + err.message);
     console.error(err);
     try { clearTriggers_(); } catch (e2) { log_("Clearing triggers failed: " + e2.message); }
-    try { updateDashboard_(ss, {"status": "Stopped with error: " + err.message + " (see log email)"}); } catch (e4) { console.error(e4); }
+    try {
+      updateDashboard_(ss, {"status": "Stopped with error: " + err.message + " (see log email)",
+                            "quota": MailApp.getRemainingDailyQuota()});
+    } catch (e4) { console.error(e4); }
     try { endRun_(); } catch (e3) { console.error(e3); }
   } finally {
     if (!RUN_ENDED_) appendRunLog_(); // keep this part of the log for the next execution
@@ -339,159 +342,173 @@ function sendBatch_(ss, fresh) {
     var rowData = objects[i];
     // [2026-11-27] Actual sheet row of this record (empty rows are skipped by getRowsData_)
     var rowNum = dataRange.getRow() + rowData.__rowIndex;
+    var sent = false;
+    // [2026-11-28] An unexpected error in one row marks that row and the run continues
+    try {
 
-    if (!isMarkedToSend_(rowData.toSend)) {
-      continue;
-    }
-
-    var done = rowData.done;
-    if ((typeof done == "string") && (done == "Done")) {
-      continue;
-    }
-
-    if (!isValidEmail_(rowData.emailAddressToSend)) {
-      log_("Row " + rowNum + ": invalid email: " + rowData.emailAddressToSend);
-      dataSheet.getRange(rowNum, 2).setValue("Error: Invalid email");
-      continue;
-    }
-
-    var template = rowData.template;
-    var templateSheet = ss.getSheetByName(template);
-    if (!templateSheet) {
-      log_("Row " + rowNum + ": skipped (template not found: " + template + ")");
-      dataSheet.getRange(rowNum, 2).setValue("Error and Skipped (template not found)");
-      continue;
-    }
-
-    var subjTemplate = templateSheet.getRange("B1").getValue();
-    var bodyTemplate = templateSheet.getRange("B2").getValue();
-
-    // Generate a personalized email.
-    // Given a template string, replace markers (for instance ${"First Name"}) with
-    // the corresponding value in a row object (for instance rowData.firstName).
-    var emailSubject = fillInTemplateFromObject_(subjTemplate, rowData);
-    var emailBody = fillInTemplateFromObject_(bodyTemplate, rowData);
-
-    // Adding HTML (rich-text) [added in v5.00]
-    var htmlBody = converter.makeHtml(emailBody);
-    // [2026-11-28] Readable plain-text version for mail apps that do not show HTML
-    var plainBody = htmlToPlainText_(htmlBody);
-
-    // Get a list of objects of attachments (also checking existence)
-    var attachments = new Array;
-    var fileList = [];
-    var attachmentError = 0;
-    if ((rowData.attachmentList !== undefined) && (rowData.attachmentList != "")) {
-      fileList = rowData.attachmentList.split(',').map(s => s.trim());
-    }
-    // [2026-11-27] Folder for this row only (subfolder no longer carries over to later rows)
-    var rowFolder = folder;
-    if ((rowFolder != null) && (rowData.subfolder !== undefined)) {
-      var subfolders = rowFolder.getFoldersByName(rowData.subfolder);
-      if (subfolders.hasNext()) {
-        rowFolder = subfolders.next();
+      if (!isMarkedToSend_(rowData.toSend)) {
+        continue;
       }
-    }
-    // If no folderID given BUT attachment list is not empty, skip this email!
-    if ((rowFolder == null) && (fileList.length >0)) {
-      attachmentError++;
-    } else {
-      for (var j=0; j<fileList.length; j++) {
-        var files = rowFolder.getFilesByName(fileList[j]);
-        if (files.hasNext()) {
-          // note: assume only one file with the same name in the folder
-          attachments.push(files.next());
-        } else {
-          // file not found, assume error and skip this record
-          attachmentError++;
+
+      var done = rowData.done;
+      if ((typeof done == "string") && (done == "Done")) {
+        continue;
+      }
+
+      if (!isValidEmail_(rowData.emailAddressToSend)) {
+        log_("Row " + rowNum + ": invalid email: " + rowData.emailAddressToSend);
+        dataSheet.getRange(rowNum, 2).setValue("Error: Invalid email");
+        continue;
+      }
+
+      var template = rowData.template;
+      var templateSheet = ss.getSheetByName(template);
+      if (!templateSheet) {
+        log_("Row " + rowNum + ": skipped (template not found: " + template + ")");
+        dataSheet.getRange(rowNum, 2).setValue("Error and Skipped (template not found)");
+        continue;
+      }
+
+      var subjTemplate = templateSheet.getRange("B1").getValue();
+      var bodyTemplate = templateSheet.getRange("B2").getValue();
+
+      // Generate a personalized email.
+      // Given a template string, replace markers (for instance ${"First Name"}) with
+      // the corresponding value in a row object (for instance rowData.firstName).
+      var emailSubject = fillInTemplateFromObject_(subjTemplate, rowData);
+      var emailBody = fillInTemplateFromObject_(bodyTemplate, rowData);
+
+      // Adding HTML (rich-text) [added in v5.00]
+      var htmlBody = converter.makeHtml(emailBody);
+      // [2026-11-28] Readable plain-text version for mail apps that do not show HTML
+      var plainBody = htmlToPlainText_(htmlBody);
+
+      // Get a list of objects of attachments (also checking existence)
+      var attachments = new Array;
+      var fileList = [];
+      var attachmentError = 0;
+      if ((rowData.attachmentList !== undefined) && (rowData.attachmentList != "")) {
+        fileList = rowData.attachmentList.split(',').map(s => s.trim());
+      }
+      // [2026-11-27] Folder for this row only (subfolder no longer carries over to later rows)
+      var rowFolder = folder;
+      if ((rowFolder != null) && (rowData.subfolder !== undefined)) {
+        var subfolders = rowFolder.getFoldersByName(rowData.subfolder);
+        if (subfolders.hasNext()) {
+          rowFolder = subfolders.next();
         }
       }
-    }
-
-    if (attachmentError) {
-      log_("Row " + rowNum + ": skipped (attachment error): " + rowData.emailAddressToSend);
-      dataSheet.getRange(rowNum, 2).setValue("Error and Skipped (attachment error)");
-      continue;
-    }
-
-    // [2022-04-21] Prepare inline images
-    // [2026-11-27] An image that cannot be loaded skips this row instead of stopping the run
-    var inlineImages = new Object();
-    var imageError = "";
-    for (const [key, value] of Object.entries(rowData)) {
-      if (key.substring(0,7)=="imglink" && value != "") {
-        try {
-          inlineImages[key] = UrlFetchApp.fetch(value).getBlob().setName(key);
-        } catch (e) {
-          imageError = key + " cannot be fetched";
-          break;
-        }
-      } else if (key.substring(0,7)=="imgfile" && value != "") {
-        if (rowFolder == null) {
-          imageError = key + " needs a Folder ID";
-          break;
-        }
-        var files = rowFolder.getFilesByName(value);
-        if (files.hasNext()) {
-          inlineImages[key] = files.next().getBlob().setName(key);
-        } else {
-          imageError = key + " file not found";
-          break;
-        }
-      } else if (key.substring(0,6)=="qrdata" && value != "") {
-        // [2026-10-09] use qrcode javascript library
-        try {
-          inlineImages[key] = makeQrBlob_(value, key);
-        } catch (e) {
-          log_("Row " + rowNum + ": QR code generation failed for " + value + ": " + e.message);
+      // If no folderID given BUT attachment list is not empty, skip this email!
+      if ((rowFolder == null) && (fileList.length >0)) {
+        attachmentError++;
+      } else {
+        for (var j=0; j<fileList.length; j++) {
+          var files = rowFolder.getFilesByName(fileList[j]);
+          if (files.hasNext()) {
+            // note: assume only one file with the same name in the folder
+            attachments.push(files.next());
+          } else {
+            // file not found, assume error and skip this record
+            attachmentError++;
+          }
         }
       }
-    }
 
-    if (imageError) {
-      log_("Row " + rowNum + ": skipped (image error: " + imageError + "): " + rowData.emailAddressToSend);
-      dataSheet.getRange(rowNum, 2).setValue("Error and Skipped (image error: " + imageError + ")");
+      if (attachmentError) {
+        log_("Row " + rowNum + ": skipped (attachment error): " + rowData.emailAddressToSend);
+        dataSheet.getRange(rowNum, 2).setValue("Error and Skipped (attachment error)");
+        continue;
+      }
+
+      // [2022-04-21] Prepare inline images
+      // [2026-11-27] An image that cannot be loaded skips this row instead of stopping the run
+      var inlineImages = new Object();
+      var imageError = "";
+      for (const [key, value] of Object.entries(rowData)) {
+        if (key.substring(0,7)=="imglink" && value != "") {
+          try {
+            inlineImages[key] = UrlFetchApp.fetch(value).getBlob().setName(key);
+          } catch (e) {
+            imageError = key + " cannot be fetched";
+            break;
+          }
+        } else if (key.substring(0,7)=="imgfile" && value != "") {
+          if (rowFolder == null) {
+            imageError = key + " needs a Folder ID";
+            break;
+          }
+          var files = rowFolder.getFilesByName(value);
+          if (files.hasNext()) {
+            inlineImages[key] = files.next().getBlob().setName(key);
+          } else {
+            imageError = key + " file not found";
+            break;
+          }
+        } else if (key.substring(0,6)=="qrdata" && value != "") {
+          // [2026-10-09] use qrcode javascript library
+          try {
+            inlineImages[key] = makeQrBlob_(value, key);
+          } catch (e) {
+            log_("Row " + rowNum + ": QR code generation failed for " + value + ": " + e.message);
+          }
+        }
+      }
+
+      if (imageError) {
+        log_("Row " + rowNum + ": skipped (image error: " + imageError + "): " + rowData.emailAddressToSend);
+        dataSheet.getRange(rowNum, 2).setValue("Error and Skipped (image error: " + imageError + ")");
+        continue;
+      }
+
+      // [2026-11-28] Stop cleanly before the daily quota runs out
+      if (emailQuotaRemaining - unitsPerEmail < 1) {
+        log_("Daily email quota reached. Stopped before row " + rowNum + ". Run again tomorrow to continue.");
+        clearTriggers_();
+        updateDashboard_(ss, {"status": "Stopped: daily email quota reached. Run again tomorrow to continue.",
+                              "quota": emailQuotaRemaining});
+        endRun_();
+        return;
+      }
+
+      // Send out now
+      var opts = new Object();
+      if (attachments.length > 0) opts['attachments'] = attachments;
+      if (ccList != "") opts['cc'] = ccList;
+      if (bccList != "") opts['bcc'] = bccList;
+      if (sendAs != "") opts['name'] = sendAs;
+      if (replyTo != "") opts['replyTo'] = replyTo;
+      if (noReply == true || String(noReply).toLowerCase() == "true") opts['noReply'] = true;
+      if (Object.keys(inlineImages).length>0) opts['inlineImages'] = inlineImages;
+      opts['htmlBody'] = htmlBody;
+
+      // Ref: https://developers.google.com/apps-script/reference/mail/mail-app#sendEmail(String,String,String,Object)
+      MailApp.sendEmail(rowData.emailAddressToSend, emailSubject, plainBody, opts);
+      sent = true;
+      emailQuotaRemaining -= unitsPerEmail;
+      log_("Row " + rowNum + ": sent to " + rowData.emailAddressToSend + " (" + attachments.length + " attachment(s))");
+
+      // Mark "Done" in Datasheet
+      dataSheet.getRange(rowNum, 2).setValue("Done");
+      SpreadsheetApp.flush();
+
+      // Checking time-out
+      if (isTimedOut_()) {
+        // prepare trigger for re-run after 30 seconds
+        log_("Execution time limit reached. Continuing in 30 seconds.");
+        updateDashboard_(ss, {"quota": emailQuotaRemaining});
+        setRerunTrigger_();
+        return;
+      };
+    } catch (err) {
+      if (isQuotaError_(err)) throw err; // quota exhausted: stop the whole run
+      log_("Row " + rowNum + ": " + (sent ? "sent, but then error: " : "skipped (error: ") + err.message + (sent ? "" : ")"));
+      try {
+        dataSheet.getRange(rowNum, 2).setValue(sent ? "Done" : "Error and Skipped (" + err.message + ")");
+      } catch (e2) {
+        log_("Row " + rowNum + ": could not write status: " + e2.message);
+      }
       continue;
     }
-
-    // [2026-11-28] Stop cleanly before the daily quota runs out
-    if (emailQuotaRemaining - unitsPerEmail < 1) {
-      log_("Daily email quota reached. Stopped before row " + rowNum + ". Run again tomorrow to continue.");
-      clearTriggers_();
-      updateDashboard_(ss, {"status": "Stopped: daily email quota reached. Run again tomorrow to continue.",
-                            "quota": emailQuotaRemaining});
-      endRun_();
-      return;
-    }
-
-    // Send out now
-    var opts = new Object();
-    if (attachments.length > 0) opts['attachments'] = attachments;
-    if (ccList != "") opts['cc'] = ccList;
-    if (bccList != "") opts['bcc'] = bccList;
-    if (sendAs != "") opts['name'] = sendAs;
-    if (replyTo != "") opts['replyTo'] = replyTo;
-    if (noReply == true || String(noReply).toLowerCase() == "true") opts['noReply'] = true;
-    if (Object.keys(inlineImages).length>0) opts['inlineImages'] = inlineImages;
-    opts['htmlBody'] = htmlBody;
-
-    // Ref: https://developers.google.com/apps-script/reference/mail/mail-app#sendEmail(String,String,String,Object)
-    MailApp.sendEmail(rowData.emailAddressToSend, emailSubject, plainBody, opts);
-    emailQuotaRemaining -= unitsPerEmail;
-    log_("Row " + rowNum + ": sent to " + rowData.emailAddressToSend + " (" + attachments.length + " attachment(s))");
-
-    // Mark "Done" in Datasheet
-    dataSheet.getRange(rowNum, 2).setValue("Done");
-    SpreadsheetApp.flush();
-
-    // Checking time-out
-    if (isTimedOut_()) {
-      // prepare trigger for re-run after 30 seconds
-      log_("Execution time limit reached. Continuing in 30 seconds.");
-      updateDashboard_(ss, {"quota": emailQuotaRemaining});
-      setRerunTrigger_();
-      return;
-    };
   }
 
   // Up to this point, all records processed
@@ -557,6 +574,11 @@ function endRun_() {
   MailApp.sendEmail(recipient, subject, body, { htmlBody: html, noReply: true });
   clearRunLog_();
   RUN_ENDED_ = true;
+}
+
+// Errors from MailApp when the daily quota is used up
+function isQuotaError_(err) {
+  return /too many times|quota|limit exceeded/i.test(String(err && err.message));
 }
 
 // Alert only when a user interface exists (not in trigger runs)
