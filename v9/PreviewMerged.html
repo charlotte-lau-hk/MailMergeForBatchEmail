@@ -134,6 +134,17 @@
         });
       }
 
+      // Write simple content into the email body area
+      function writeBody(html) {
+        const iframe = $("#data_body")[0];
+        if (iframe) {
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          doc.open();
+          doc.write("<html><body style='font-family: Arial, sans-serif; font-size: 13px; padding: 6px;'>" + html + "</body></html>");
+          doc.close();
+        }
+      }
+
       function loadRecord() {
         const rowNum = state.list[state.idx];
         function displayMailContent(data) {
@@ -150,17 +161,17 @@
         // Clear all .local elements except iframe
         $(".local").not("#data_body").empty();
 
-        // Clear iframe content
-        const iframe = $("#data_body")[0];
-        if (iframe) {
-          const doc = iframe.contentDocument || iframe.contentWindow.document;
-          doc.open();
-          doc.write("<html><body>Loading. Please wait.</body></html>");
-          doc.close();
-        }
+        writeBody("Loading. Please wait.");
         
         fetchRow(rowNum, displayMailContent, (err) => {
-          if (state.list[state.idx] === rowNum) showError(err.message);
+          if (state.list[state.idx] !== rowNum) return;
+          // [2026-11-28] Show the error in the email area too, so it does not look stuck
+          showError("Record #" + rowNum + " cannot be previewed: " + err.message);
+          writeBody("<p style='color:#b91c1c'><b>This record cannot be previewed.</b></p>"
+                    + "<p>" + $("<div>").text(err.message).html() + "</p>"
+                    + "<p>Check the template and the data in this row. "
+                    + "The same problem will stop the sending run at this row.</p>");
+          $("#nav").show();
         });
       }
 
