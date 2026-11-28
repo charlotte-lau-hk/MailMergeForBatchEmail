@@ -2,7 +2,7 @@
 /*******************************************************
  * Mail Merge for Batch Email (v9.2.0)
  * Maintained by Charlotte Lau
- * Last Update: 2026-11-27 (bug fixes: row tracking, subfolders, preview QR codes, error handling)
+ * Last Update: 2026-11-28 (bug fixes: row tracking, subfolders, preview QR codes, error handling, menu on new sheets, faster preview)
  * GitHub: https://github.com/charlotte-lau-hk/MailMergeForBatchEmail
  * Features: Rich-text, inline images, QR codes, attachments, multiple templates,
  *   auto-rerun, AI template suggestions, dynamic email preview
@@ -14,9 +14,7 @@
 
 function onOpen(e) {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
-  updateDashboard_(ss, {"status": "Initializing..."});
-  ss.getSheetByName("Dashboard").activate();
-
+  // [2026-11-28] Menu first, so Initialize Sheets is available even if sheets are missing
   SpreadsheetApp.getUi().createMenu("Mail Merge for Batch Email")
       .addItem('📑 Initialize Sheets', 'initializeSheets_')
       .addItem('📁 Pick Folder for Attachment', 'launchFolderPicker_')
@@ -26,6 +24,10 @@ function onOpen(e) {
       .addSeparator()
       .addItem('📬 Check Mail Quota', 'checkMailQuota_')
       .addToUi();
+
+  updateDashboard_(ss, {"status": "Initializing..."});
+  let dashboard = ss.getSheetByName("Dashboard");
+  if (dashboard) dashboard.activate();
 
   const documentProperties = PropertiesService.getDocumentProperties();
   documentProperties.setProperty("SpreadsheetId", ss.getId()); // store doc id for time-driven trigger

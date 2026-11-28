@@ -3,14 +3,24 @@
 A Google Apps Script to send batch emails with rich-text, inline images, QR codes, attachments, and dynamic previews, integrated with Google Sheets and Drive.  
 **(Click [this direct link](https://syclau.hk/mailmerge) to make a copy of the pre-configured Google Sheets file with the scripts)**
 
-[![Version](https://img.shields.io/badge/version-9.1.1-F1C40F)](https://syclau.hk/mailmerge)  
+[![Version](https://img.shields.io/badge/version-9.2.0-F1C40F)](https://syclau.hk/mailmerge)  
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Charlotte%20Lau-0288D1?logo=linkedin)](https://www.linkedin.com/in/charlotte-lau-hk/)  
 [![Website](https://img.shields.io/badge/Website-syclau.hk-D81B60)](https://www.syclau.hk)  
-*Last Updated: 2026-11-27 (v9.1.1)*
+*Last Updated: 2026-11-28 (v9.2.0)*
 
 ## Overview
 
 `MailMergeForBatchEmail` is a powerful tool for sending personalized batch emails using Google Sheets as a data source and Google Drive for attachments. It supports rich-text email bodies (via Markdown), inline images, QR codes, and attachments from a selected folder. The script includes a dynamic folder picker, email preview with navigation, and automatic rerun for large batches, making it ideal for educators, administrators, or anyone needing to send customized emails in bulk.
+
+## What’s New in v9.2
+
+- **Correct Status After Empty Rows**: "Done" and error messages are now written to the right row when the Datasheet contains empty rows.
+- **Subfolders Apply to One Row Only**: A subfolder no longer carries over to the rows after it.
+- **QR Codes in Preview**: The preview now shows QR codes, using the same library as sending.
+- **"To Send" Accepts TRUE, "Y" or "Yes"**: The same rule now applies to sending, preview and the quota check, in any capitalization.
+- **Image Errors Skip the Row**: A bad image link or a missing image file marks that row "Error and Skipped (image error: …)" instead of stopping the run. Previously, a missing `imgfile` image was sent without the image.
+- **Menu Always Available**: The menu now appears even when sheets are missing, so Initialize Sheets can be run on a new spreadsheet.
+- **Faster Preview**: The first record loads with the dialog, and the next records are loaded in the background.
 
 ## What’s New in v9.1
 
